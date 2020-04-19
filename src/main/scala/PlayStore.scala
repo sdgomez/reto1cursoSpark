@@ -1,16 +1,24 @@
 import Context._
-import org.apache.spark.sql.Dataset
+import Context.ss.implicits._
 import Model._
-import ss.implicits._
-import scala.util.Try
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
 
 object PlayStore extends App {
+  val customSchema = StructType(
+    Seq(
+      StructField("App", StringType, true),
+      StructField("Rating", DoubleType, true),
+    )
+  )
   val appsRating: Dataset[RatingApplication] =
-    ss.read.option("header", "true").csv("src/main/resources/googleplaystore.csv")
+    ss.read.format("csv").option("header", "true")
+      .schema(customSchema)
+      .load("src/main/resources/googleplaystore.csv")
       .selectExpr(
         "`App` as app",
         "`Rating` as rating"
-      )
+      ).na.drop()
       .as[RatingApplication]
 
   val userReviews: Dataset[UserReview] =
@@ -23,7 +31,7 @@ object PlayStore extends App {
       ).as[UserReview]
 
   // Filtre las aplicaciones con Rating mayor a 4.7
-  val bestApps: Dataset[RatingApplication] = appsRating.filter(x => Try(x.rating.toDouble > 4.7).getOrElse(false))
+  val bestApps: Dataset[RatingApplication] = appsRating.filter(x => x.rating > 4.7)
 
   // bestApps.show()
 
